@@ -1,0 +1,113 @@
+package com.example.star_wars_app.presentation.screens.planet.detail
+
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.star_wars_app.data.mapper.characters.toSmallModel
+import com.example.star_wars_app.data.mapper.films.toSmallModel
+import com.example.star_wars_app.domain.model.Planet
+import com.example.star_wars_app.domain.use_case.characters.GetCharacterByUrlUseCase
+import com.example.star_wars_app.domain.use_case.films.GetFilmByUrlUseCase
+import com.example.star_wars_app.domain.use_case.planets.GetPlanetByUrlUseCase
+import com.example.star_wars_app.domain.use_case.planets.SetFavoritePlanetUseCase
+import com.example.star_wars_app.domain.use_case.planets.SetPlanetLastSeenUseCase
+import com.example.star_wars_app.presentation.model.SmallItemModel
+import com.example.star_wars_app.presentation.model.StateUI
+import com.example.star_wars_app.presentation.screens.planet.detail.ui.PlanetUI
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+
+class PlanetDetailViewModel(
+    private val getPlanetByUrlUseCase: GetPlanetByUrlUseCase,
+    private val getCharacterByUrlUseCase: GetCharacterByUrlUseCase,
+    private val getFilmByUrlUseCase: GetFilmByUrlUseCase,
+    private val setLastSeenUseCase: SetPlanetLastSeenUseCase,
+    private val setFavoritePlanetUseCase: SetFavoritePlanetUseCase,
+    url: String,
+) : ViewModel() {
+
+    private val _planetUI = mutableStateOf(PlanetUI())
+    val planetUI: State<PlanetUI> = _planetUI
+
+    private val _planetState = MutableStateFlow<StateUI<Planet>>(StateUI.Idle())
+    val planetState = _planetState.asStateFlow()
+
+    private val _filmsState = MutableStateFlow<StateUI<List<SmallItemModel>>>(StateUI.Idle())
+    val filmsState = _filmsState.asStateFlow()
+
+    private val _charactersState = MutableStateFlow<StateUI<List<SmallItemModel>>>(StateUI.Idle())
+    val charactersState = _charactersState.asStateFlow()
+
+    init {
+        loadPlanet(url)
+    }
+
+    private fun loadPlanet(url: String) {
+        viewModelScope.launch {
+            getPlanetByUrlUseCase(url).onStart {
+                _planetState.emit(StateUI.Processing())
+            }.catch {
+                _planetState.emit(StateUI.Error(it.message.orEmpty()))
+            }.collect { data ->
+                setLastSeenUseCase(data).collect { planet ->
+                    _planetUI.value = planetUI.value.copy(planet = planet)
+                    loadCharacters(planet.residents)
+                    loadFilms(planet.films)
+                    _planetState.emit(StateUI.Processed(planet))
+                }
+            }
+        }
+    }
+
+    private fun loadFilms(urls: List<String>) {
+        viewModelScope.launch {
+            urls.forEach { urls ->
+                getFilmByUrlUseCase(urls).onStart {
+                    _filmsState.emit(StateUI.Processing())
+                }.catch {
+                    _filmsState.emit(StateUI.Error())
+                }.collect { data ->
+                    _planetUI.value = planetUI.value.copy(
+                        films = planetUI.value.films.plus(data)
+                    )
+                }
+            }
+            if (_planetUI.value.films.isEmpty())
+                _filmsState.emit(StateUI.Error("This planet isn't related with any movie"))
+            else
+                _filmsState.emit(StateUI.Processed(_planetUI.value.films.map { it.toSmallModel() }))
+        }
+    }
+
+    private fun loadCharacters(urls: List<String>) {
+        viewModelScope.launch {
+            urls.forEach { urls ->
+                getCharacterByUrlUseCase(urls).onStart {
+                    _charactersState.emit(StateUI.Processing())
+                }.catch {
+                    _charactersState.emit(StateUI.Error())
+                }.collect { data ->
+                    _planetUI.value = planetUI.value.copy(
+                        characters = planetUI.value.characters.plus(data)
+                    )
+                }
+            }
+            if (_planetUI.value.characters.isEmpty())
+                _charactersState.emit(StateUI.Error("This planet isn't related with any character"))
+            else
+                _charactersState.emit(StateUI.Processed(_planetUI.value.characters.map { it.toSmallModel() }))
+        }
+    }
+
+    fun favorite() {
+        viewModelScope.launch {
+            _planetUI.value.planet?.let { planet ->
+                setFavoritePlanetUseCase(planet).catch {}.collect { updatedPlanet ->
+                    _planetUI.value = planetUI.value.copy(planet = updatedPlanet)
+                }
+            }
+        }
+    }
+
+}
