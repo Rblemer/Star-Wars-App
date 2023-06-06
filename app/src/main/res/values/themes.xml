@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.StarWarsApp" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.StarWarsApp" parent="Theme.Material3.DayNight">
+        <item name="android:statusBarColor">#FFFFFF</item>
+    </style>
+
+    <style name="SplashScreenTheme" parent="Theme.StarWarsApp">
+        <item name="android:windowBackground">@drawable/bg_splash</item>
+    </style>
+
 </resources>

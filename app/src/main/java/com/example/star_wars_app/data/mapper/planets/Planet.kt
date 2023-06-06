@@ -1,0 +1,82 @@
+package com.example.star_wars_app.data.mapper.planets
+
+import androidx.compose.ui.layout.ContentScale
+import com.example.star_wars_app.commom.extension.idFromUrl
+import com.example.star_wars_app.commom.extension.ifNull
+import com.example.star_wars_app.data.local.model.PlanetEntity
+import com.example.star_wars_app.data.local.model.UpdateEntity
+import com.example.star_wars_app.data.remote.config.ApiUrls
+import com.example.star_wars_app.data.remote.model.PlanetModel
+import com.example.star_wars_app.domain.model.Planet
+import com.example.star_wars_app.presentation.model.ItemModel
+import com.example.star_wars_app.presentation.model.SmallItemModel
+
+fun PlanetModel.toEntity() = this.run {
+    val id = url?.idFromUrl() ifNull 0
+    PlanetEntity(
+        id = id,
+        name = name.orEmpty(),
+        films = films.orEmpty(),
+        url = url.orEmpty(),
+        climate = climate.orEmpty(),
+        diameter = diameter.orEmpty(),
+        gravity = gravity.orEmpty(),
+        orbitalPeriod = orbitalPeriod.orEmpty(),
+        population = population.orEmpty(),
+        residents = residents.orEmpty(),
+        rotationPeriod = rotationPeriod.orEmpty(),
+        surfaceWater = surfaceWater.orEmpty(),
+        terrain = terrain.orEmpty(),
+        image = "${ApiUrls.imageBaseUrl}planets/${id}.jpg",
+        lastSeen = null,
+        favorite = false
+    )
+}
+
+fun PlanetEntity.toPlanet() = Planet(
+    id = id,
+    name = name,
+    films = films,
+    url = url,
+    climate = climate,
+    diameter = diameter,
+    gravity = gravity,
+    orbitalPeriod = orbitalPeriod,
+    population = population,
+    residents = residents,
+    rotationPeriod = rotationPeriod,
+    surfaceWater = surfaceWater,
+    terrain = terrain,
+    image = image,
+    lastSeen = lastSeen,
+    favorite = favorite
+)
+
+fun Planet.toEntity() = UpdateEntity(
+    id = id,
+    favorite = favorite,
+    lastSeen = lastSeen
+)
+
+fun Planet.toSmallModel() = SmallItemModel(
+    url = url,
+    image = image,
+    name = name
+)
+
+fun Planet.toModel() = ItemModel(
+    url = url,
+    image = image,
+    contentScale = ContentScale.Crop,
+    aspectRatio = 1f,
+    firstFields = listOf(
+        "Name" to name,
+        "Population" to population,
+        "Rotation period" to rotationPeriod
+    ),
+    otherFields = listOf(
+        "Climate" to climate,
+        "Gravity" to gravity,
+        "Orbital Period" to orbitalPeriod
+    )
+)
